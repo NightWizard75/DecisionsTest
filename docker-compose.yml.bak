@@ -1,0 +1,95 @@
+version: '3.9'
+
+services:
+  app:
+    build:
+      context: ./fpm
+      dockerfile: Dockerfile
+      args:
+        - PHP_VERSION=${PHP_VERSION}
+        - PHP_ERROR_LOG_PATH=${PHP_ERROR_LOG_PATH}
+        - X_DEBUG=${X_DEBUG}
+        - X_DEBUG_ERROR_LOG_PATH=${X_DEBUG_ERROR_LOG_PATH}
+        - MEMPROF_LOG_PATH=${MEMPROF_LOG_PATH_DOCKER}
+        - TIMEZONE=${TIMEZONE}
+    image: decisions/php
+    container_name: app
+    environment:
+      MEMPROF_PROFILE: ${MEMPROF_PROFILE_ENABLE}
+      PHP_IDE_CONFIG: ${PHP_IDE_CONFIG}
+      TZ: ${TIMEZONE}
+    volumes:
+      - ${APP_CODE_PATH_HOST}:${APP_CODE_PATH_DOCKER}
+      - ${PHP_ERROR_LOG_PATH}:/var/log/php_errors
+      - ${X_DEBUG_ERROR_LOG_PATH}:/var/log/x_debug
+      - ${MEMPROF_LOG_PATH_HOST}:${MEMPROF_LOG_PATH_DOCKER}
+      - ./fpm/conf/php:/usr/local/etc/php_from_host
+      - ${UNIX_SOCKET_PATH_HOST}:${UNIX_SOCKET_PATH_DOCKER}
+    networks:
+      - app-network
+
+  workspace:
+    build:
+      context: ./workspace
+      dockerfile: Dockerfile
+      args:
+        - PHP_VERSION=${PHP_VERSION}
+        - PHP_ERROR_LOG_PATH=${PHP_ERROR_LOG_PATH}
+        - X_DEBUG=${X_DEBUG}
+        - X_DEBUG_ERROR_LOG_PATH=${X_DEBUG_ERROR_LOG_PATH}
+        - MEMPROF_LOG_PATH=${MEMPROF_LOG_PATH_DOCKER}
+        - TIMEZONE=${TIMEZONE}
+    image: decisions/workspace
+    container_name: workspace
+    environment:
+      TZ: ${TIMEZONE}
+    volumes:
+      - ${APP_CODE_PATH_HOST}:${APP_CODE_PATH_DOCKER}
+      - ${PHP_ERROR_LOG_PATH}:/var/log/php_errors
+      - ${X_DEBUG_ERROR_LOG_PATH}:/var/log/x_debug
+      - ${MEMPROF_LOG_PATH_HOST}:${MEMPROF_LOG_PATH_DOCKER}
+      - ${CERTIFICATES}:/var/www/cert
+      - ${WORKSPACE_SCRIPTS_PATH_HOST}:${WORKSPACE_SCRIPTS_PATH_DOCKER}
+    networks:
+      - app-network
+
+  webserver:
+    depends_on:
+      - app
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    image: decisions/nginx
+    container_name: webserver
+    environment:
+      TZ: ${TIMEZONE}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ${APP_CODE_PATH_HOST}:${APP_CODE_PATH_DOCKER}
+      - ${NGINX_LOG_PATH}:/var/log/nginx
+      - ${UNIX_SOCKET_PATH_HOST}:${UNIX_SOCKET_PATH_DOCKER}
+      - ${SITES_ENABLED_PATH}:/etc/nginx/sites-enabled/
+      - ${CERTIFICATES}:${NGINX_SSL_PATH_DOCKER}
+    networks:
+      - app-network
+
+  pgsql:
+    image: postgres:latest
+    container_name: postgres
+    environment:
+      - TZ=${TIMEZONE}
+      - POSTGRES_DATABASE=${PGSQL_DB_NAME}
+      - POSTGRES_USER=${PGSQL_DB_USER}
+      - POSTGRES_PASSWORD=${PGSQL_DB_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - ${PGSQL_STORAGE_PLACE}:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
