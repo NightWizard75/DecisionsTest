@@ -8,6 +8,7 @@ use App\Exceptions\Router\InvalidRouteException;
 use App\Exceptions\Router\InvalidRouteMethodException;
 use App\Http\Response\IResponse;
 use App\Http\Response\ResponseSelector;
+use App\Http\Controllers\LoginController;
 use Exception;
 
 /**
@@ -54,6 +55,7 @@ class Router
         $serviceRoot = (empty(substr($serviceRoot, 1)) || substr($serviceRoot, 1) === $startPhpFile)
             ? '/' . $_ENV['DEFAULT_CONTROLLER_NAME']
             : $serviceRoot;
+        $serviceRoot[1] = strtoupper($serviceRoot[1]);
         while (false !== $lastPos = strrpos($serviceRoot, '/')) {
             $class = preg_replace('/\//', "\\", $controllersBasePath . $serviceRoot) . 'Controller';
             if (class_exists($class)) {

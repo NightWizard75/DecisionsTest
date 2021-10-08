@@ -42,7 +42,7 @@ class LoginController extends BaseController
                 $this->data['error'] = true;
             }
         }
-        $this->loadView('login/index');
+        $this->loadView('Login/index');
     }
 
     public function logout(): void
